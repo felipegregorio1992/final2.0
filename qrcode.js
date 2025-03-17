@@ -9,6 +9,10 @@ const express = require('express');
 const app = express();
 const port = process.env.PORT || 3001;
 
+// Cria diretório temporário se não existir
+const tempDir = path.join(__dirname, 'temp');
+fs.mkdir(tempDir, { recursive: true }).catch(console.error);
+
 // Configuração do servidor Express
 app.use(express.static(__dirname));
 
@@ -189,7 +193,7 @@ function isValidBase64(str) {
 
 // Função para salvar arquivo temporário
 async function saveTempFile(buffer, extension) {
-    const tempPath = path.join(__dirname, `temp_${Date.now()}${extension}`);
+    const tempPath = path.join(tempDir, `temp_${Date.now()}${extension}`);
     await fs.writeFile(tempPath, buffer);
     return tempPath;
 }
@@ -256,11 +260,14 @@ client.on('message', async (message) => {
     try {
         // Verifica se a mensagem contém mídia e é uma imagem
         if (message.hasMedia) {
+            console.log('Mensagem com mídia recebida');
             const media = await message.downloadMedia();
             
             if (!media || !media.data) {
                 throw new Error('Dados da mídia não encontrados');
             }
+
+            console.log('Tipo de mídia:', media.mimetype);
 
             if (!media.mimetype.startsWith('image/')) {
                 await message.reply('Por favor, envie apenas imagens.');
@@ -279,6 +286,7 @@ client.on('message', async (message) => {
             
             // Salva o PDF temporariamente
             tempFilePath = await saveTempFile(pdfBuffer, '.pdf');
+            console.log('PDF salvo em:', tempFilePath);
             
             // Lê o arquivo como base64
             const pdfBase64 = (await fs.readFile(tempFilePath)).toString('base64');
@@ -290,6 +298,7 @@ client.on('message', async (message) => {
                 'documento.pdf'
             );
 
+            console.log('Enviando PDF de volta...');
             // Envia o PDF de volta para o usuário
             await message.reply(pdfMedia);
             await message.reply('Aqui está seu PDF! 📄');
