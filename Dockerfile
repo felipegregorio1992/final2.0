@@ -3,20 +3,24 @@ FROM ubuntu:22.04
 # Evita interações durante a instalação de pacotes
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Instala Node.js e outras dependências necessárias
+# Instala as dependências necessárias
 RUN apt-get update && apt-get install -y \
     curl \
     gnupg \
+    wget \
     && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y nodejs \
     && apt-get install -y \
-    nodejs \
     chromium-browser \
     fonts-ipafont-gothic \
     fonts-wqy-zenhei \
     fonts-thai-tlwg \
     fonts-kacst \
+    fonts-symbola \
+    fonts-noto-color-emoji \
     fonts-freefont-ttf \
     libxss1 \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Define a variável de ambiente para o Puppeteer usar o Chromium instalado
