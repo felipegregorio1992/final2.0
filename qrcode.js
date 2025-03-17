@@ -49,34 +49,24 @@ const client = new Client({
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
             '--disable-accelerated-2d-canvas',
-            '--no-first-run',
-            '--no-zygote',
-            '--single-process',
             '--disable-gpu',
-            '--disable-software-rasterizer',
-            '--disable-extensions',
-            '--disable-default-apps',
-            '--disable-sync',
-            '--disable-background-networking',
-            '--disable-background-timer-throttling',
-            '--disable-backgrounding-occluded-windows',
-            '--disable-breakpad',
-            '--disable-client-side-phishing-detection',
-            '--disable-component-extensions-with-background-pages',
-            '--disable-features=TranslateUI,BlinkGenPropertyTrees',
-            '--disable-ipc-flooding-protection',
-            '--disable-renderer-backgrounding',
-            '--enable-features=NetworkService,NetworkServiceInProcess',
-            '--force-color-profile=srgb',
-            '--metrics-recording-only',
-            '--mute-audio',
-            '--headless=new'
+            '--window-size=1280,720',
+            '--user-data-dir=/app/.chrome-data',
+            '--remote-debugging-port=9222'
         ],
-        headless: "new",
+        headless: true,
         executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome',
-        timeout: 60000,
-        protocolTimeout: 60000
-    }
+        ignoreHTTPSErrors: true,
+        defaultViewport: {
+            width: 1280,
+            height: 720
+        },
+        timeout: 120000,
+        protocolTimeout: 120000
+    },
+    authStrategy: new (require('whatsapp-web.js')).LocalAuth({
+        dataPath: '/app/.wwebjs_auth'
+    })
 });
 
 // Gera o QR Code para autenticação

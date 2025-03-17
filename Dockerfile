@@ -1,60 +1,31 @@
-FROM node:18-slim
+FROM node:18
 
 # Evita interações durante a instalação de pacotes
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Instala as dependências do Chrome
+# Instala o Chrome e suas dependências
 RUN apt-get update \
-    && apt-get install -y \
-    wget \
-    gnupg \
-    ca-certificates \
-    fonts-liberation \
-    libasound2 \
-    libatk-bridge2.0-0 \
-    libatk1.0-0 \
-    libc6 \
-    libcairo2 \
-    libcups2 \
-    libdbus-1-3 \
-    libexpat1 \
-    libfontconfig1 \
-    libgbm1 \
-    libgcc1 \
-    libglib2.0-0 \
-    libgtk-3-0 \
-    libnspr4 \
-    libnss3 \
-    libpango-1.0-0 \
-    libpangocairo-1.0-0 \
-    libstdc++6 \
-    libx11-6 \
-    libx11-xcb1 \
-    libxcb1 \
-    libxcomposite1 \
-    libxcursor1 \
-    libxdamage1 \
-    libxext6 \
-    libxfixes3 \
-    libxi6 \
-    libxrandr2 \
-    libxrender1 \
-    libxss1 \
-    libxtst6 \
-    lsb-release \
-    xdg-utils \
-    && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
-    && sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' \
+    && apt-get install -y wget gnupg \
+    && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/googlechrome-linux-keyring.gpg \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-linux-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list \
     && apt-get update \
-    && apt-get install -y google-chrome-stable \
+    && apt-get install -y \
+    google-chrome-stable \
+    fonts-ipafont-gothic \
+    fonts-wqy-zenhei \
+    fonts-thai-tlwg \
+    fonts-kacst \
+    fonts-freefont-ttf \
     && rm -rf /var/lib/apt/lists/*
 
-# Configura as variáveis de ambiente para o Puppeteer
+# Configura as variáveis de ambiente
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome
 ENV NODE_ENV=production
+ENV CHROME_PATH=/usr/bin/google-chrome
+ENV CHROME_DEVEL_SANDBOX=/usr/local/sbin/chrome-devel-sandbox
 
-# Cria diretório de trabalho
+# Cria e configura o diretório de trabalho
 WORKDIR /app
 
 # Copia os arquivos de dependências
@@ -66,8 +37,15 @@ RUN npm install
 # Copia o resto dos arquivos
 COPY . .
 
+# Cria diretório para dados do Chrome
+RUN mkdir -p /app/.chrome-data \
+    && chown -R node:node /app
+
+# Muda para o usuário node
+USER node
+
 # Expõe a porta que a aplicação usa
 EXPOSE 3001
 
-# Inicia a aplicação com as flags necessárias do Chrome
+# Inicia a aplicação
 CMD ["node", "qrcode.js"] 
