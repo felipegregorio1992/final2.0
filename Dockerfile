@@ -32,14 +32,7 @@ ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome
 ENV NODE_ENV=production
 
-# Adiciona um usuário não-root
-RUN groupadd -r pptruser && useradd -r -g pptruser -G audio,video pptruser \
-    && mkdir -p /home/pptruser/Downloads \
-    && chown -R pptruser:pptruser /home/pptruser \
-    && chown -R pptruser:pptruser /app
-
-USER pptruser
-
+# Cria diretório de trabalho
 WORKDIR /app
 
 # Copia os arquivos de dependências
@@ -49,7 +42,16 @@ COPY package*.json ./
 RUN npm install
 
 # Copia o resto dos arquivos
-COPY --chown=pptruser:pptruser . .
+COPY . .
+
+# Adiciona um usuário não-root e configura permissões
+RUN useradd -r -g root -G audio,video pptruser \
+    && mkdir -p /home/pptruser/Downloads \
+    && chown -R pptruser:root /home/pptruser \
+    && chown -R pptruser:root /app
+
+# Muda para o usuário não-root
+USER pptruser
 
 # Expõe a porta que a aplicação usa
 EXPOSE 3001
