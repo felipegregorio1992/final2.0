@@ -1,30 +1,15 @@
-FROM ubuntu:22.04
+FROM node:18-slim
 
 # Evita interações durante a instalação de pacotes
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Instala as dependências necessárias
-RUN apt-get update && apt-get install -y \
-    curl \
-    gnupg \
-    wget \
-    && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+# Instala as dependências do Chrome
+RUN apt-get update \
+    && apt-get install -y wget gnupg \
     && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
-    && echo "deb http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list \
+    && sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' \
     && apt-get update \
-    && apt-get install -y \
-    nodejs \
-    google-chrome-stable \
-    fonts-ipafont-gothic \
-    fonts-wqy-zenhei \
-    fonts-thai-tlwg \
-    fonts-kacst \
-    fonts-symbola \
-    fonts-noto-color-emoji \
-    fonts-freefont-ttf \
-    libxss1 \
-    xvfb \
-    && apt-get clean \
+    && apt-get install -y google-chrome-stable fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst fonts-freefont-ttf libxss1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Configura as variáveis de ambiente para o Puppeteer
@@ -44,17 +29,8 @@ RUN npm install
 # Copia o resto dos arquivos
 COPY . .
 
-# Adiciona um usuário não-root e configura permissões
-RUN useradd -r -g root -G audio,video pptruser \
-    && mkdir -p /home/pptruser/Downloads \
-    && chown -R pptruser:root /home/pptruser \
-    && chown -R pptruser:root /app
-
-# Muda para o usuário não-root
-USER pptruser
-
 # Expõe a porta que a aplicação usa
 EXPOSE 3001
 
-# Inicia a aplicação com Xvfb
-CMD ["xvfb-run", "--server-args='-screen 0 1280x800x24'", "npm", "start"] 
+# Inicia a aplicação
+CMD ["node", "qrcode.js"] 

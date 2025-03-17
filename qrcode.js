@@ -51,9 +51,12 @@ const client = new Client({
             '--disable-accelerated-2d-canvas',
             '--no-first-run',
             '--no-zygote',
-            '--disable-gpu'
+            '--single-process',
+            '--disable-gpu',
+            '--headless=new'
         ],
-        headless: true
+        headless: "new",
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome'
     }
 });
 
