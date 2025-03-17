@@ -7,14 +7,14 @@ const path = require('path');
 const WebSocket = require('ws');
 const express = require('express');
 const app = express();
-const port = 3001;
+const port = process.env.PORT || 3001;
 
 // Configuração do servidor Express
 app.use(express.static(__dirname));
 
 // Criação do servidor WebSocket
-const server = app.listen(port, () => {
-    console.log(`Servidor rodando em http://localhost:${port}`);
+const server = app.listen(port, '0.0.0.0', () => {
+    console.log(`Servidor rodando em http://0.0.0.0:${port}`);
 });
 const wss = new WebSocket.Server({ server });
 
