@@ -66,6 +66,20 @@ wss.on('connection', (ws) => {
         }));
     }
 
+    ws.on('message', async (message) => {
+        try {
+            const data = JSON.parse(message);
+            if (data.type === 'disconnect') {
+                console.log('Cliente solicitou desconexão do WhatsApp');
+                await client.destroy();
+                lastQrCode = null;
+                broadcast({ type: 'disconnected' });
+            }
+        } catch (error) {
+            console.error('Erro ao processar mensagem do cliente:', error);
+        }
+    });
+
     ws.on('close', () => {
         clients.delete(ws);
         console.log('Cliente WebSocket desconectado');
