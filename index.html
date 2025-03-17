@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QR Code WhatsApp</title>
+    <title>WhatsApp QR Code</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -18,31 +18,48 @@
         .container {
             background-color: white;
             padding: 2rem;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             text-align: center;
+            max-width: 90%;
+            width: 400px;
         }
         h1 {
             color: #128C7E;
-            margin-bottom: 1rem;
+            margin-bottom: 1.5rem;
         }
         #qrcode {
             margin: 1rem 0;
-            padding: 1rem;
-            background-color: white;
-            border-radius: 5px;
-            min-height: 256px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
-        #qrcode img {
-            max-width: 100%;
-            height: auto;
-        }
-        .status {
-            color: #666;
+        #status {
             margin-top: 1rem;
+            padding: 0.5rem;
+            border-radius: 4px;
+        }
+        .connected {
+            background-color: #25D366;
+            color: white;
+        }
+        .disconnected {
+            background-color: #DC3545;
+            color: white;
+        }
+        .connecting {
+            background-color: #FFC107;
+            color: black;
+        }
+        #reconnectButton {
+            margin-top: 1rem;
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            background-color: #128C7E;
+            color: white;
+            cursor: pointer;
+            display: none;
+        }
+        #reconnectButton:hover {
+            background-color: #0C6B5B;
         }
     </style>
 </head>
@@ -50,61 +67,95 @@
     <div class="container">
         <h1>WhatsApp QR Code</h1>
         <div id="qrcode"></div>
-        <div class="status" id="status">Aguardando QR Code...</div>
+        <div id="status">Conectando...</div>
+        <button id="reconnectButton" onclick="connect()">Reconectar</button>
     </div>
+
     <script>
-        let lastQRCode = null;
-        const qrcodeElement = document.getElementById('qrcode');
-        const statusElement = document.getElementById('status');
+        let ws;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 5;
+        const reconnectDelay = 5000;
+        const statusDiv = document.getElementById('status');
+        const qrcodeDiv = document.getElementById('qrcode');
+        const reconnectButton = document.getElementById('reconnectButton');
+        let reconnectTimeout;
 
-        // Conecta ao servidor WebSocket
-        const ws = new WebSocket('ws://localhost:3001');
+        function updateStatus(message, type) {
+            statusDiv.textContent = message;
+            statusDiv.className = type;
+        }
 
-        ws.onopen = function() {
-            console.log('Conexão WebSocket estabelecida');
-            statusElement.textContent = 'Conectado ao servidor. Aguardando QR Code...';
-        };
+        function connect() {
+            if (ws) {
+                ws.close();
+            }
 
-        ws.onmessage = function(event) {
-            try {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}`;
+            
+            updateStatus('Conectando...', 'connecting');
+            reconnectButton.style.display = 'none';
+
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                console.log('WebSocket conectado');
+                updateStatus('Aguardando QR Code...', 'connected');
+                reconnectAttempts = 0;
+                if (reconnectTimeout) {
+                    clearTimeout(reconnectTimeout);
+                }
+            };
+
+            ws.onmessage = (event) => {
                 const data = JSON.parse(event.data);
-                console.log('Mensagem recebida:', data.type);
-                
                 if (data.type === 'qr') {
-                    // Evita gerar o mesmo QR code múltiplas vezes
-                    if (lastQRCode === data.qr) {
-                        return;
-                    }
-                    lastQRCode = data.qr;
-
-                    // Limpa o QR code anterior
-                    qrcodeElement.innerHTML = '';
-                    
-                    // Cria e exibe a imagem do QR code
-                    const img = new Image();
-                    img.src = data.qr;
-                    qrcodeElement.appendChild(img);
-                    
-                    statusElement.textContent = 'Escaneie o QR Code com seu WhatsApp';
+                    qrcodeDiv.innerHTML = `<img src="${data.qr}" alt="QR Code">`;
+                    updateStatus('Escaneie o QR Code com seu WhatsApp', 'connected');
                 } else if (data.type === 'ready') {
-                    statusElement.textContent = 'WhatsApp conectado!';
-                    qrcodeElement.style.display = 'none';
+                    qrcodeDiv.innerHTML = '';
+                    updateStatus('WhatsApp conectado!', 'connected');
+                }
+            };
+
+            ws.onclose = () => {
+                console.log('WebSocket desconectado');
+                updateStatus('Conexão fechada', 'disconnected');
+                
+                if (reconnectAttempts < maxReconnectAttempts) {
+                    reconnectTimeout = setTimeout(() => {
+                        reconnectAttempts++;
+                        connect();
+                    }, reconnectDelay);
+                } else {
+                    reconnectButton.style.display = 'block';
+                }
+            };
+
+            ws.onerror = (error) => {
+                console.error('Erro no WebSocket:', error);
+                updateStatus('Erro na conexão', 'disconnected');
+            };
+        }
+
+        // Inicia a conexão quando a página carrega
+        connect();
+
+        // Verifica o status do servidor periodicamente
+        setInterval(async () => {
+            try {
+                const response = await fetch('/status');
+                const data = await response.json();
+                if (data.status !== 'online') {
+                    throw new Error('Server offline');
                 }
             } catch (error) {
-                console.error('Erro ao processar mensagem:', error);
-                statusElement.textContent = 'Erro ao processar mensagem do servidor';
+                if (ws.readyState === WebSocket.OPEN) {
+                    ws.close();
+                }
             }
-        };
-
-        ws.onerror = function(error) {
-            console.error('Erro na conexão WebSocket:', error);
-            statusElement.textContent = 'Erro na conexão. Verifique se o servidor está rodando.';
-        };
-
-        ws.onclose = function() {
-            console.log('Conexão WebSocket fechada');
-            statusElement.textContent = 'Conexão fechada. Recarregue a página para reconectar.';
-        };
+        }, 30000);
     </script>
 </body>
 </html> 

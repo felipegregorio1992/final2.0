@@ -12,31 +12,101 @@ const port = process.env.PORT || 3001;
 // Configuração do servidor Express
 app.use(express.static(__dirname));
 
+// Rota para verificar status
+app.get('/status', (req, res) => {
+    res.json({ status: 'online' });
+});
+
 // Criação do servidor WebSocket
 const server = app.listen(port, '0.0.0.0', () => {
-    console.log(`Servidor rodando em http://0.0.0.0:${port}`);
+    console.log('=================================');
+    console.log(`🚀 Servidor rodando na porta ${port}`);
+    if (process.env.RAILWAY_STATIC_URL) {
+        console.log(`📡 URL de acesso: ${process.env.RAILWAY_STATIC_URL}`);
+    } else {
+        console.log(`📡 URL de acesso local: http://localhost:${port}`);
+    }
+    console.log('=================================');
 });
+
 const wss = new WebSocket.Server({ server });
 
 // Armazena as conexões WebSocket ativas
 const clients = new Set();
+
+// Função para enviar heartbeat para os clientes
+function heartbeat() {
+    clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.ping();
+        }
+    });
+}
+
+// Inicia o heartbeat a cada 30 segundos
+setInterval(heartbeat, 30000);
 
 // Gerenciamento de conexões WebSocket
 wss.on('connection', (ws) => {
     clients.add(ws);
     console.log('Cliente WebSocket conectado');
 
+    // Configura ping/pong para manter a conexão viva
+    ws.isAlive = true;
+    ws.on('pong', () => {
+        ws.isAlive = true;
+    });
+
+    // Envia o último QR code se disponível
+    if (lastQrCode) {
+        ws.send(JSON.stringify({
+            type: 'qr',
+            qr: lastQrCode,
+            timestamp: Date.now()
+        }));
+    }
+
     ws.on('close', () => {
         clients.delete(ws);
         console.log('Cliente WebSocket desconectado');
     });
+
+    ws.on('error', (error) => {
+        console.error('Erro no WebSocket:', error);
+        clients.delete(ws);
+    });
 });
+
+// Verifica conexões mortas a cada 30 segundos
+const interval = setInterval(() => {
+    wss.clients.forEach((ws) => {
+        if (ws.isAlive === false) {
+            clients.delete(ws);
+            return ws.terminate();
+        }
+        ws.isAlive = false;
+    });
+}, 30000);
+
+// Limpa o intervalo quando o servidor é fechado
+wss.on('close', () => {
+    clearInterval(interval);
+});
+
+// Variável para armazenar o último QR code
+let lastQrCode = null;
 
 // Função para enviar mensagem para todos os clientes conectados
 function broadcast(message) {
+    const messageStr = JSON.stringify(message);
     clients.forEach(client => {
         if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify(message));
+            try {
+                client.send(messageStr);
+            } catch (error) {
+                console.error('Erro ao enviar mensagem para cliente:', error);
+                clients.delete(client);
+            }
         }
     });
 }
@@ -69,15 +139,14 @@ const client = new Client({
     })
 });
 
-// Gera o QR Code para autenticação
+// Modifica o evento qr para armazenar o último QR code
 client.on('qr', async (qr) => {
     console.log('QR Code gerado. Escaneie-o com seu WhatsApp:');
     
     try {
-        // Gera o QR code como uma string de dados URL
         const qrDataURL = await qrcode.toDataURL(qr);
+        lastQrCode = qrDataURL;
         
-        // Envia o QR code para a página web
         broadcast({ 
             type: 'qr', 
             qr: qrDataURL,
