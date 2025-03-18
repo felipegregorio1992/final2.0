@@ -228,7 +228,10 @@ client.on('qr', async (qr) => {
 
 // Quando o cliente estiver pronto
 client.on('ready', () => {
-    console.log('Cliente WhatsApp conectado!');
+    console.log('=================================');
+    console.log('🟢 Cliente WhatsApp conectado!');
+    console.log('✅ Pronto para receber imagens');
+    console.log('=================================');
     broadcast({ type: 'ready' });
 });
 
@@ -305,63 +308,92 @@ async function cleanupTempFile(filePath) {
 
 // Manipula as mensagens recebidas
 client.on('message', async (message) => {
+    console.log('📩 Nova mensagem recebida');
     let tempFilePath = null;
     
     try {
-        // Verifica se a mensagem contém mídia e é uma imagem
+        console.log('Verificando tipo da mensagem...');
+        
+        // Verifica se a mensagem contém mídia
         if (message.hasMedia) {
-            console.log('Mensagem com mídia recebida');
+            console.log('✅ Mensagem contém mídia');
+            console.log('⏳ Baixando mídia...');
+            
             const media = await message.downloadMedia();
             
             if (!media || !media.data) {
+                console.error('❌ Dados da mídia não encontrados');
                 throw new Error('Dados da mídia não encontrados');
             }
 
-            console.log('Tipo de mídia:', media.mimetype);
+            console.log(`📎 Tipo de mídia: ${media.mimetype}`);
+            console.log(`📊 Tamanho dos dados: ${media.data.length} bytes`);
 
             if (!media.mimetype.startsWith('image/')) {
-                await message.reply('Por favor, envie apenas imagens.');
+                console.log('❌ Mídia não é uma imagem');
+                await message.reply('❌ Por favor, envie apenas imagens. Outros tipos de arquivos não são suportados.');
                 return;
             }
 
-            await message.reply('Processando sua imagem... 🔄');
+            await message.reply('⏳ Processando sua imagem... Aguarde um momento.');
 
             // Converte o base64 da imagem em buffer
+            console.log('🔄 Convertendo base64 para buffer...');
             const imageBuffer = Buffer.from(media.data, 'base64');
             
-            console.log('Convertendo imagem para PDF...');
+            console.log('📄 Iniciando conversão para PDF...');
             
             // Converte a imagem para PDF
             const pdfBuffer = await convertImageToPDF(imageBuffer);
+            console.log('✅ PDF gerado com sucesso');
             
             // Salva o PDF temporariamente
             tempFilePath = await saveTempFile(pdfBuffer, '.pdf');
-            console.log('PDF salvo em:', tempFilePath);
+            console.log('💾 PDF salvo temporariamente em:', tempFilePath);
             
             // Lê o arquivo como base64
+            console.log('🔄 Convertendo PDF para base64...');
             const pdfBase64 = (await fs.readFile(tempFilePath)).toString('base64');
 
             // Cria o arquivo de mídia para enviar
+            console.log('📦 Preparando PDF para envio...');
             const pdfMedia = new MessageMedia(
                 'application/pdf',
                 pdfBase64,
                 'documento.pdf'
             );
 
-            console.log('Enviando PDF de volta...');
+            console.log('📤 Enviando PDF...');
             // Envia o PDF de volta para o usuário
             await message.reply(pdfMedia);
-            await message.reply('Aqui está seu PDF! 📄');
+            await message.reply('✅ Aqui está seu PDF! Para converter outra imagem, basta enviá-la.');
+            console.log('✅ PDF enviado com sucesso');
+        } else {
+            console.log('❌ Mensagem não contém mídia');
+            await message.reply('❌ Por favor, envie uma imagem para que eu possa convertê-la em PDF.');
         }
     } catch (error) {
-        console.error('Erro ao processar mensagem:', error);
-        await message.reply('Desculpe, ocorreu um erro ao processar sua imagem. Por favor, tente enviar novamente.');
+        console.error('❌ Erro ao processar mensagem:', error);
+        await message.reply('❌ Desculpe, ocorreu um erro ao processar sua imagem. Por favor, tente enviar novamente.');
     } finally {
         // Limpa o arquivo temporário se ele existir
         if (tempFilePath) {
+            console.log('🧹 Limpando arquivo temporário...');
             await cleanupTempFile(tempFilePath);
+            console.log('✅ Arquivo temporário removido');
         }
     }
+});
+
+// Manipula erros do cliente
+client.on('auth_failure', () => {
+    console.error('❌ Falha na autenticação do WhatsApp');
+    broadcast({ type: 'error', message: 'Falha na autenticação' });
+});
+
+client.on('disconnected', (reason) => {
+    console.log('❌ Cliente desconectado:', reason);
+    broadcast({ type: 'disconnected' });
 });
 
 // Inicia o cliente do WhatsApp
