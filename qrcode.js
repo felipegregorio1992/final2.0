@@ -129,9 +129,11 @@ function broadcast(message) {
     });
 }
 
-// Inicializa o cliente do WhatsApp com opções adicionais
+// Inicializa o cliente do WhatsApp
 const client = new Client({
     puppeteer: {
+        headless: true,
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome',
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -140,21 +142,69 @@ const client = new Client({
             '--disable-gpu',
             '--window-size=1280,720',
             '--user-data-dir=/app/.chrome-data',
-            '--remote-debugging-port=9222'
+            '--remote-debugging-port=9222',
+            '--disable-extensions',
+            '--disable-software-rasterizer',
+            '--disable-notifications',
+            '--disable-default-apps',
+            '--disable-popup-blocking',
+            '--disable-sync',
+            '--disable-web-security',
+            '--disable-features=IsolateOrigins,site-per-process',
+            '--disable-site-isolation-trials'
         ],
-        headless: true,
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome',
         ignoreHTTPSErrors: true,
         defaultViewport: {
             width: 1280,
             height: 720
         },
         timeout: 120000,
-        protocolTimeout: 120000
+        protocolTimeout: 120000,
+        waitForTimeout: 120000,
+        handleSIGINT: false,
+        handleSIGTERM: false,
+        handleSIGHUP: false
     },
-    authStrategy: new (require('whatsapp-web.js')).LocalAuth({
-        dataPath: '/app/.wwebjs_auth'
-    })
+    qrMaxRetries: 5,
+    authTimeoutMs: 120000,
+    takeoverOnConflict: true,
+    takeoverTimeoutMs: 120000,
+    qrQuality: 0.8,
+    qrMargin: 4,
+    puppeteer: {
+        headless: true,
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome',
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--disable-gpu',
+            '--window-size=1280,720',
+            '--user-data-dir=/app/.chrome-data',
+            '--remote-debugging-port=9222',
+            '--disable-extensions',
+            '--disable-software-rasterizer',
+            '--disable-notifications',
+            '--disable-default-apps',
+            '--disable-popup-blocking',
+            '--disable-sync',
+            '--disable-web-security',
+            '--disable-features=IsolateOrigins,site-per-process',
+            '--disable-site-isolation-trials'
+        ],
+        ignoreHTTPSErrors: true,
+        defaultViewport: {
+            width: 1280,
+            height: 720
+        },
+        timeout: 120000,
+        protocolTimeout: 120000,
+        waitForTimeout: 120000,
+        handleSIGINT: false,
+        handleSIGTERM: false,
+        handleSIGHUP: false
+    }
 });
 
 // Modifica o evento qr para armazenar o último QR code
